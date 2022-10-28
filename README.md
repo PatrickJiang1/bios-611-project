@@ -20,7 +20,7 @@ docker run --rm
            -p 16767:8787 
            -v ${pwd}:/home/rstudio/work 
            -e PASSWORD=pwd
-           -it rocker/verse
+           -it project
 ```
 Then, type localhost:8787 in your browser to access RStudio. 
 
