@@ -1,0 +1,26 @@
+---
+title: "project"
+author: "Patrick Jiang"
+date: "2022-11-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/home/rstudio/project")
+```
+
+```{r}
+library(tidyverse)
+df <- read_csv("source_data/scrubbed.csv")
+
+#plot
+library(ggplot2)
+table(df$shape)
+shape <- as.data.frame(table(df$shape))
+shape1<- shape[shape$Freq>10,]
+shape2 <- shape1[order(shape1$Freq),]
+p<-ggplot(shape2, aes(x=reorder(Var1, -Freq),y=Freq)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=45))
+ggsave("figures/ufo_type_barplot.png", plot=p)
+```
