@@ -1,11 +1,13 @@
-PHONY: clean
+.PHONY: clean
 
 clean:
-	rm figures
+	rm -rf figures
+	rm -rf .created-dirs
 
 .created-dirs:
 	mkdir -p figures
+	touch .created-dirs
 	
-#produce figure of barplot for type of observed UFO
-figures/ufo_type_barplot.png: source_data/scrubbed.csv ufo_plots.R .created-dirs
-	Rscript ufo_plots.R
+#build final report
+report.pdf: source_data/scrubbed.csv 
+	R -e "rmarkdown::render(\"writeup.Rmd\", output_format=\"pdf_document\")"
