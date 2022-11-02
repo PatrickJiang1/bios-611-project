@@ -22,5 +22,8 @@ shape1<- shape[shape$Freq>10,]
 shape2 <- shape1[order(shape1$Freq),]
 p<-ggplot(shape2, aes(x=reorder(Var1, -Freq),y=Freq)) + geom_bar(stat="identity") + 
   theme(axis.text.x=element_text(angle=45))
-ggsave("figures/ufo_type_barplot.png", plot=p)
+p
+#ggsave("figures/ufo_type_barplot.png", plot=p)
 ```
+
+It appears that light is the most frequent form of UFO observed in this data set.
