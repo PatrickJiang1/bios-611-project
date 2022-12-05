@@ -1,29 +1,125 @@
 ---
-title: "project"
+title: "UFO Data Analysis Project"
 author: "Patrick Jiang"
 date: "2022-11-02"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=F, message=F)
 knitr::opts_knit$set(root.dir = "/home/rstudio/project")
 ```
 
-```{r}
+```{r, echo=F}
 library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(maps)
+library(mapdata)
+library(lubridate)
 df <- read_csv("source_data/scrubbed.csv")
 
-#plot
-library(ggplot2)
-table(df$shape)
-shape <- as.data.frame(table(df$shape))
-shape1<- shape[shape$Freq>10,]
-shape2 <- shape1[order(shape1$Freq),]
-p<-ggplot(shape2, aes(x=reorder(Var1, -Freq),y=Freq)) + geom_bar(stat="identity") + 
-  theme(axis.text.x=element_text(angle=45))
-p
-#ggsave("figures/ufo_type_barplot.png", plot=p)
+#world map plot
+ggplot(df, aes(x=longitude,y=latitude, colour=country)) + 
+  borders("world",color="gray", fill="white") + geom_point(size=1) + 
+  theme_bw() + theme(legend.position="none")
+#most observations occur in continental us
 ```
 
-It appears that light is the most frequent form of UFO observed in this data set.
+From observing this world plot, it appears that most reports come from the continental United States. This could be due to NUFORC being based in Oregon, US. It could also be due to a cultural aspect of a higher interest in UFOs among Americans compared to the rest of the world. In any case, it might be more interesting to further analyze this UFO data in the continental US to see if there are any interesting trends.
+
+```{r, echo=F}
+#us map plot
+df1 <- df %>% na.omit() %>% filter(country=="us" & !(state %in% c("pr","hi","ak")))
+ggplot(df1, aes(x=longitude,y=latitude, colour=state)) + borders("state") + 
+  geom_point(size=.75) + theme_bw() + theme(legend.position="none") + ggtitle("UFO Reports in the US (1920-2014)")
+```
+
+From observing the plot of UFO sightings in the US, it is interesting to note that there is a higher density in reports from the east coast and west coast, with reports sparsely distributed across the Midwest. This might be related to the higher population and density for the coastal states compared to the Midwest states. It might be difficult to ascertain how many exact sightings each state has from this plot alone. 
+
+```{r, echo=F}
+#state barplot
+ggplot(df1, aes(x=reorder(state, state, FUN=length), fill=state))+stat_count()  + 
+  theme(axis.text.x=element_text(angle=45,size=7.5),legend.position = "none", 
+        axis.title.x=element_blank(), axis.title.y=element_blank()) + 
+  ggtitle("UFO Sightings per State")
+```
+
+From this barplot of UFO sightings per state, you can see that California has the most UFO sightings by a large margin, with over 8500 sightings from 1920 to 2014. Florida, Washington, Texas, and New York, are the next states with the highest number of sightings, respectively. This dataset also contains city data, so it might be interesting to see which cities had the most UFO sightings.
+
+```{r, echo=F}
+#barchart of frequency of ufo observations in us states
+state_count <- df%>%filter(state!='')%>%count(str_to_title(city),toupper(state),sort=T)%>%unite('location', -n, sep=', ')
+state_count %>% filter(n>100)%>%mutate(x=factor(location))%>%ggplot(aes(x,n))+geom_segment(aes(x=reorder(x,n),xend=x,y=0,yend=n))+coord_flip()+theme_bw()+theme(axis.text=element_text(size=7),axis.title.y=element_blank(), axis.title.x=element_blank())
+
+```
+
+From this plot, it's interesting to note that five of the top six cities for volume of UFO sightings are all on the west coast, with Las Vegas, NV being 3rd.
+
+Next, it might be interesting to see if there are any trends in UFO sightings over time.
+
+```{r, echo=F}
+#time series plot ufo sightings
+df1$datetime <- mdy_hm(df1$datetime)
+sightings <- df1 %>% group_by(year=year(datetime)) %>% summarize(sightings=n())
+ggplot(sightings, aes(x=year,y=sightings))+geom_line(colour="red") + theme_bw() + ggtitle("UFO Sightings in the US (1920-2014)")
+#steep dropoff in sightings after around 2012
+
+#ts plot reports
+df1$`date posted` <- mdy(df1$`date posted`)
+df1$date.posted <- df1$`date posted`
+reports <- df1 %>% group_by(year=year(date.posted)) %>% summarize(reports=n())
+ggplot(reports, aes(x=year, y=reports))+geom_line(colour="blue")+theme_bw()+ggtitle("UFO reports in the US (1920-2014)")
+```
+
+From the plot of UFO sightings in the US over time, it appears that this time series is not stationary due to a non-constant mean function. There can also be seasonality in the UFO sightings, which will be investigated later. It's also interesting to note that there is a steep dropoff of UFO sightings after around 2012, from approximately 6000 to 2000. The UFO reports plot follows a similar trend to the UFO sightings, since the reports are turned in after the initial sighting.
+
+```{r, echo=F}
+#$datetime <- mdy_hm(df1$datetime)
+df1 <- df1 %>% mutate(hour=hour(datetime), day=day(datetime), month=month(datetime), year=year(datetime))
+df1 %>% mutate(month=factor(month), day=factor(day)) %>% filter(between(year,1995,2014)) %>% group_by(year, month) %>% summarize(counts=n()) %>% ggplot(aes(month,counts, group=year)) + geom_line() + facet_wrap(~year, ncol=4)+theme_bw()
+#There appears to be seasonality in this data, where the ufo sightings increase around the summer every year.
+```
+
+To assess if there is seasonality in the UFO sightings over time, the count of UFO sightings was plotted against months of the year for 1995 to 2014. It can be observed that the number of UFO sightings for the majority of these years peaks around months 7 to 8, which corresponds to the summer season. Thus, there appears to be seasonality in this data, where the UFO sightings increase around the summer every year.
+
+Next, it might be interesting to see if there is any similar trend with respect to time of day that these sightings occur.
+
+```{r, echo=F}
+#hour 
+df1 %>% count(hour,month)%>% ggplot(aes(hour,n))+geom_line()+facet_wrap(~month)
+#most sightings occurred during the evening, consistent across all months during the year.
+```
+
+From the plots above it can be observed that most sightings occurred during the evening hours of around 8:00 to 9:00 p.m., consistent across all months during the year. Additionally, there are higher peaks during the months of June and July, which agrees with the previous plots.
+
+Finally, it could be insightful to note the most common forms or types of UFO that were reported by individuals during the sighting.
+
+```{r, echo=F}
+#barplot of ufo type observed
+shape <- as.data.frame(table(df1$shape))
+shape1<- shape[shape$Freq>10,]
+shape2 <- shape1[order(shape1$Freq),]
+colors <- colorRampPalette(brewer.pal(8,"Set2"))(length(shape$Freq))
+ggplot(shape2, aes(x=reorder(Var1, -Freq),y=Freq)) + 
+  geom_bar(stat="identity", aes(fill=as.factor(-Freq))) + 
+  scale_fill_manual(values=colors) +
+  theme(axis.text.x=element_text(angle=45),legend.position = "none", 
+        axis.title.x=element_blank(), axis.title.y=element_blank()) + 
+  ggtitle("Most Frequent UFO Shapes (1920-2014)")
+```
+
+From the barplot of most frequent UFO shapes, it appears that UFOs of the form "light" are the most common, with over 12,000 sightings from 1920 to 2014. 
+
+From this analysis, it could be gathered that most sightings occurred during the night and during the summer, with most UFO sightings being described as "light". Top cities with the highest number of sightings are mostly from the west coast, with California being the state having the highest number of sightings.
+
+# Limitations
+Limitations that can be found in this project include possible errors in the data, specifically the duration data of these sightings.
+
+```{r, echo=F}
+summary(df1$`duration (seconds)`)
+```
+
+The maximum value for the dataset subsetted to the continental US is 66276000, which converted to years is slightly over 2.1 years. This is not the only high value, as there are also other observations with duration in the millions of seconds. For an observation to occur for that long does not make much sense to me, but there has not been any discussion that has been brought up about this data online, which made me not use it. I had originally planned on creating a multiple regression model that predicts duration of UFO sighting, but these seemingly erroneous values prevented me from doing so.
+
+Another limitation in this data set is that I found it hard to apply the machine learning methods to the data, since it is not highly dimensional and contains only 10 columns. Besides the regression model I was planning on creating stated previous, I found it difficult to apply any other technique to this data.
